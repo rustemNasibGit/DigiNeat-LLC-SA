@@ -1,0 +1,196 @@
+openapi: 3.0.3
+info:
+  title: Интернет-магазин — API Авторизации и Профиля
+  description: Спецификация API для процессов регистрации, подтверждения email и авторизации пользователей в личном кабинете.
+  version: 1.0.0
+paths:
+  /api/v1/auth/register:
+    post:
+      summary: Регистрация нового пользователя
+      description: Создает учетную запись в статусе «не активирована» и инициирует отправку письма с токеном подтверждения на указанный email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              \$ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Пользователь успешно создан, письмо с подтверждением отправлено.
+        '400':
+          description: Неверный формат данных (ошибки валидации email, пароля или имени).
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Конфликт. Пользователь с таким email уже зарегистрирован в системе.
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/verify-email:
+    post:
+      summary: Подтверждение email
+      description: Активирует аккаунт пользователя на основе одноразового токена, полученного из письма.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              \$ref: '#/components/schemas/VerifyEmailRequest'
+      responses:
+        '200':
+          description: Email успешно подтвержден. Аккаунт активирован.
+        '400':
+          description: Неверный, истекший или уже использованный токен.
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      summary: Аутентификация (Вход в систему)
+      description: Проверяет учетные данные пользователя и устанавливает сессионную куку (`SessionCookie`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              \$ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешный вход. В заголовках ответа устанавливается авторизационная Cookie.
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: session_id=abc123xyz; Path=/; Secure; HttpOnly; SameSite=Strict
+        '401':
+          description: Неверный логин или пароль.
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Доступ запрещен. Email пользователя еще не был подтвержден.
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/logout:
+    post:
+      summary: Выход из системы
+      description: Инвалидирует текущую активную сессию пользователя и удаляет авторизационную куку.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Сессия успешно завершена, кука удалена.
+        '401':
+          description: Пользователь не авторизован (сессия отсутствует или недействительна).
+
+  /api/v1/user/profile:
+    get:
+      summary: Получение данных профиля
+      description: Возвращает данные авторизованного пользователя для отображения в личном кабинете.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Данные профиля успешно получены.
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/UserProfileResponse'
+        '401':
+          description: Пользователь не авторизован.
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: session_id
+      description: Авторизационная сессионная HTTP-Only кука.
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+          description: Уникальный email-адрес пользователя для связи и логина.
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: StrongPassword123
+          description: Пароль пользователя (минимум 8 символов).
+        name:
+          type: string
+          minLength: 1
+          example: Иван
+          description: Имя пользователя для отображения в личном кабинете.
+
+    VerifyEmailRequest:
+      type: object
+      required:
+        - token
+      properties:
+        token:
+          type: string
+          example: a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d
+          description: Криптографический одноразовый токен из ссылки подтверждения.
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: StrongPassword123
+
+    UserProfileResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 125
+          description: Уникальный идентификатор пользователя в системе.
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        name:
+          type: string
+          example: Иван
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: INVALID_CREDENTIALS
+          description: Машиночитаемый строковый код ошибки для фронтенда.
+        message:
+          type: string
+          example: Неверный логин или пароль.
+          description: Понятное человеку описание ошибки.

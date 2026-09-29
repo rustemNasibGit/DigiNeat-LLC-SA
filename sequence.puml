@@ -1,0 +1,36 @@
+@startuml
+autonumber
+skinparam boxPadding 10
+
+actor "Пользователь" as User
+participant "Браузер" as Browser
+participant "Backend API" as API
+entity "Email Сервис" as Email
+
+== Регистрация (Happy Path) ==
+User -> Browser: Вводит Имя, Email и Пароль, жмет "Регистрация"
+activate Browser
+Browser -> API: POST /api/v1/auth/register {email, password, name}
+activate API
+
+API -> Email: Отправить письмо с верификацией
+activate Email
+Email --> API: Очередь принята
+deactivate Email
+
+API --> Browser: 201 Created
+deactivate API
+Browser --> User: Показ экрана "Проверьте почту"
+deactivate Browser
+
+== Ошибка: Email уже существует ==
+User -> Browser: Вводит существующий Email
+activate Browser
+Browser -> API: POST /api/v1/auth/register {email, password, name}
+activate API
+API --> Browser: 409 Conflict
+deactivate API
+Browser --> User: Отображение ошибки "Email уже зарегистрирован"
+deactivate Browser
+
+@enduml

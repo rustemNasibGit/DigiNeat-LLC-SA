@@ -29,6 +29,12 @@ paths:
             application/json:
               schema:
                 \$ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Слишком много запросов.
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/auth/verify-email:
     post:
@@ -76,6 +82,12 @@ paths:
                 \$ref: '#/components/schemas/ErrorResponse'
         '403':
           description: Доступ запрещен. Email пользователя еще не был подтвержден.
+          content:
+            application/json:
+              schema:
+                \$ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Слишком много запросов.
           content:
             application/json:
               schema:
